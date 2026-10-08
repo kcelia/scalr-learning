@@ -1,0 +1,50 @@
+# On every push: run the Terraform checks, then, on main only, send the result to Grafana Cloud.
+name: push-metrics
+
+on:
+  push:
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    name: terraform fmt + validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - id: version
+        run: echo "terraform=$(cat .terraform-version)" >> "$GITHUB_OUTPUT"
+      - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
+        with:
+          terraform_version: ${{ steps.version.outputs.terraform }}
+          terraform_wrapper: false
+      - run: terraform fmt -check -recursive -diff
+      - run: terraform init -backend=false -input=false
+      - run: terraform validate -no-color
+
+  report:
+    name: send the result to Grafana
+    needs: checks
+    if: always() && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment: env-poc-grafana-metrics
+    steps:
+      - name: push success=1 or success=0
+        env:
+          CHECKS_RESULT: ${{ needs.checks.result }}
+          REPO: ${{ github.event.repository.name }}
+          WRITE_URL: ${{ vars.GRAFANA_METRICS_WRITE_URL }}
+          INSTANCE_ID: ${{ vars.GRAFANA_METRICS_INSTANCE_ID }}
+          WRITE_TOKEN: ${{ secrets.GRAFANA_METRICS_WRITE_TOKEN }}
+        run: |
+          success=0
+          if [ "$CHECKS_RESULT" = success ]; then success=1; fi
+          code=$(curl -s -o /dev/null -w "%{http_code}" -u "$INSTANCE_ID:$WRITE_TOKEN" \
+            --data-binary "github_push,repo=$REPO,branch=main success=$success" "$WRITE_URL")
+          echo "checks=$CHECKS_RESULT success=$success -> Grafana HTTP $code"
+          [ "$code" -ge 200 ] && [ "$code" -lt 300 ]

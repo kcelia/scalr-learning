@@ -1,0 +1,9 @@
+# Terraform working files, and the local state and saved plans, which hold secrets in plain text.
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+
+# Local copy of .env.example, with this machine's stack URL and 1Password references.
+secrets.env.op
