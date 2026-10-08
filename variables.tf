@@ -11,7 +11,7 @@ variable "grafana_metrics_write_url" {
 
 # Grafana Cloud metrics instance ID, used as the username of the push.
 variable "grafana_metrics_instance_id" {
-  type =string
+  type = string
 }
 
 # Token that can only write metrics: hidden in Terraform's output, but still stored in the state.
