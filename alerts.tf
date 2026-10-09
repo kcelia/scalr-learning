@@ -28,7 +28,7 @@ resource "grafana_rule_group" "github_push" {
 
     # A: last result the workflow sent for main within 24 hours (1 = success, 0 = failure).
     data {
-      ref_id         = "A"
+      ref_id        = "A"
       datasource_uid = data.grafana_data_source.metrics.uid
       relative_time_range {
         from = 86400
