@@ -1,7 +1,7 @@
 # Name of the GitHub repository that holds the metrics workflow.
 variable "github_repository" {
   type    = string
-  default =  "scalr-learning"
+  default = "scalr-learning"
 }
 
 # Grafana Cloud URL where the workflow pushes its data point (Influx line protocol).
