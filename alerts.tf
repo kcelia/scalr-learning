@@ -1,8 +1,3 @@
-# Prometheus data source that Grafana Cloud created for the stack: Terraform reads it, it does not create it.
-data "grafana_data_source" "metrics" {
-  uid = "grafanacloud-prom"
-}
-
 # Contact point that emails the alerts to var.alert_email.
 resource "grafana_contact_point" "email" {
   name = "poc-email"
