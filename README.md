@@ -86,3 +86,4 @@ push → GitHub workflow → sends success=1 or 0 → Grafana Cloud metrics
 
 ### Add an alert on Grafana
 
+- https://olivebus357.grafana.net/alerting

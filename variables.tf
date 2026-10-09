@@ -1,6 +1,6 @@
 # Name of the GitHub repository that holds the metrics workflow.
 variable "github_repository" {
-  type    =string
+  type    = string
   default = "scalr-learning"
 }
 
