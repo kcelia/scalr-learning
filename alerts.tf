@@ -3,6 +3,15 @@ data "grafana_data_source" "metrics" {
   uid = "grafanacloud-prom"
 }
 
+# Contact point that emails the alerts to var.alert_email.
+resource "grafana_contact_point" "email" {
+  name = "poc-email"
+
+  email {
+    addresses = [var.alert_email]
+  }
+}
+
 # Alerts about the Terraform checks that the workflow runs on every push to main.
 resource "grafana_rule_group" "github_push" {
   name             = "GitHub push"
@@ -16,6 +25,11 @@ resource "grafana_rule_group" "github_push" {
     no_data_state  = "OK"
     exec_err_state = "Alerting"
 
+    # Send this alert to the email contact point instead of the stack's default ("empty", no destination).
+    notification_settings {
+      contact_point = grafana_contact_point.email.name
+    }
+
     annotations = {
       summary = "The last Terraform checks on main failed. Fix main to resolve this alert."
     }
@@ -28,7 +42,7 @@ resource "grafana_rule_group" "github_push" {
 
     # A: last result the workflow sent for main within 24 hours (1 = success, 0 = failure).
     data {
-      ref_id        = "A"
+      ref_id         = "A"
       datasource_uid = data.grafana_data_source.metrics.uid
       relative_time_range {
         from = 86400

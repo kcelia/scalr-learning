@@ -19,3 +19,9 @@ variable "grafana_metrics_write_token" {
   type      = string
   sensitive = true
 }
+
+# Personal email that receives the alerts: set in secrets.env.op, kept out of the public repo.
+variable "alert_email" {
+  type      = string
+  sensitive = true
+}

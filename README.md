@@ -84,5 +84,5 @@ push → GitHub workflow → sends success=1 or 0 → Grafana Cloud metrics
                                                   └→ alert "failure" or "no data" → OnCall → me
 ```
 
-
+### Add an alert on Grafana
 
