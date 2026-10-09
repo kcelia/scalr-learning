@@ -3,7 +3,7 @@ ENV_FILE := secrets.env.op
 TF := op run --env-file $(ENV_FILE) -- terraform
 REPO := scalr-learning
 
-.PHONY: help setup check-token-grafana check-token-github push-metric init plan apply
+.PHONY: help setup check-token-grafana check-token-oncall check-token-github push-metric init plan apply
 
 help: ## List the commands
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-20s %s\n", $$1, $$2}'
@@ -31,6 +31,9 @@ apply: $(ENV_FILE) ## Apply the changes to Grafana and GitHub, after confirmatio
 
 check-token-grafana: $(ENV_FILE) ## Check that the Grafana token stored in 1Password works
 	@op run --env-file $(ENV_FILE) -- sh -c 'code=$$(curl -s -o /dev/null -w "%{http_code}" -H "Authorization: Bearer $$GRAFANA_AUTH" "$$GRAFANA_URL/api/folders"); echo "Grafana API: HTTP $$code"; test "$$code" = 200'
+
+check-token-oncall: $(ENV_FILE) ## Check that the Grafana token also works on the OnCall API
+	@op run --env-file $(ENV_FILE) -- sh -c 'code=$$(curl -s -o /dev/null -w "%{http_code}" -H "Authorization: $$GRAFANA_AUTH" -H "X-Grafana-URL: $$GRAFANA_URL" "$$GRAFANA_ONCALL_URL/api/v1/users/"); echo "OnCall API: HTTP $$code"; test "$$code" = 200'
 
 check-token-github: $(ENV_FILE) ## Check that the GitHub token stored in 1Password can reach this repo
 	@op run --env-file $(ENV_FILE) -- sh -c 'code=$$(curl -s -o /dev/null -w "%{http_code}" -H "Authorization: Bearer $$GITHUB_TOKEN" "https://api.github.com/repos/$$GITHUB_OWNER/$(REPO)"); echo "GitHub API: HTTP $$code"; test "$$code" = 200'

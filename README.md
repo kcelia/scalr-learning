@@ -87,3 +87,9 @@ push → GitHub workflow → sends success=1 or 0 → Grafana Cloud metrics
 ### Add an alert on Grafana
 
 - https://olivebus357.grafana.net/alerting
+
+### Oncall IRM
+
+https://olivebus357.grafana.net/d/azz9kk/github-push-results?from=2026-10-07T01:03:41.271Z&to=2026-10-11T01:03:41.271Z&timezone=browser
+
+welcoming page: d’IRM> « IRM » > Settings > Admin & API: https://incident-prod-eu-west-6.grafana.net/oncall
