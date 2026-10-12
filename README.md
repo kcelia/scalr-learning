@@ -157,3 +157,9 @@ terraform {
 4. Move the CI workflow to OpenTofu and delete `.terraform-version`.
 5. `make plan` and `make apply` only need the Scalr token: give them their own env file.
 6. With an AWS account: test OIDC, Secrets Manager with `ephemeral`, and state encryption with KMS.
+
+
+
+VCS
+
+worscape -> settings change cli to vsc
