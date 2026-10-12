@@ -7,3 +7,6 @@ crash.log
 
 # Local copy of .env.example, with this machine's stack URL and 1Password references.
 secrets.env.op
+
+# Python bytecode.
+__pycache__/
