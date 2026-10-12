@@ -7,7 +7,7 @@ resource "grafana_folder" "poc" {
 resource "grafana_dashboard" "push_results" {
   folder = grafana_folder.poc.uid
   config_json = jsonencode({
-    title = "GitHub push results (scalr)"
+    title = "GitHub push results (scalr - VCS)"
     time  = { from = "now-24h", to = "now" }
     panels = [{
       type       = "timeseries"
