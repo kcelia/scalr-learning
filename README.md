@@ -149,6 +149,9 @@ In VCS mode, you need to approve the run.
 1. In Scalr, create a GitHub VCS provider (account level, OAuth).
 2. **Workspace → Settings → Source → Configuration source: VCS**: repository, branch `main`, trigger "any change", auto-apply off. Same workspace, same state.
 3. Open PR #1 (dashboard renamed), merge it, then approve the run in Scalr.
+  - les logs des runners scalr sont sure scaller
+  ![alt text](image-7.png)
+  ![alt text](image-8.png)
 4. Push a commit straight to `main` (`937e21e`).
 5. Run `make apply` from the laptop: refused.
 
