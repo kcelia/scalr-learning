@@ -172,7 +172,7 @@ In VCS mode, you need to approve the run.
 3. `make push-vars-to-scalr`: copy the 9 variables (4 sensitive) to the workspace.
 4. `make plan`, then `make apply` (confirmed with `yes`): both run on Scalr.
 
-### Scenario 2: VCS-driven (PR #1, commit `86a7417`)
+### Scenario 2: VCS-driven + secrets in Scalr env (PR #1, commit `86a7417`)
 
 1. **Connect the workspace to GitHub:** **Workspace → Settings → Source → Configuration source: VCS**: repository, branch `main`, trigger "any change", auto-apply off. Same workspace, same state.
    ![Workspace settings in VCS mode](image-1.png)
@@ -201,7 +201,28 @@ In VCS mode, you need to approve the run.
 
 **What `make plan` sends to Scalr**
 - `tofu` packs the local folder into an archive (a *slug*) and uploads it; the Scalr runner runs the plan from that archive, uncommitted code included.
-- Only `.terraformignore` filters the archive, not `.gitignore`. This repo has none, so everything except `.git/` and `.terraform/` is uploaded, git-ignored files included (for example a local `*.tfstate`).
+- Only `.terraformignore` filters the archive, not `.gitignore`. Without it, everything except `.git/` and `.terraform/` was uploaded, git-ignored files included: `secrets.env.op`, the screenshots, any local `*.tfstate`.
+- The repo's `.terraformignore` is an allowlist: it excludes everything, then keeps only what OpenTofu reads.
+  ```
+  *
+  !*.tf
+  !.terraform.lock.hcl
+  ```
+- Tested with go-slug `v0.16.8`, the library OpenTofu `1.13.1` uses to build the archive: the archive now holds only the 7 `.tf` files and `.terraform.lock.hcl`.
+- If the code starts reading another file (a template, a local module), add it to `.terraformignore`: otherwise the run fails, because the file is missing on the runner.
+
+
+Secrets in this scenario:
+- See the variables of the brute state:
+  - in Scalr UI:  Chaque ligne est une version du state
+  ![alt text](image-20.png)
+  - via terminal: ` tofu state pull` récupère la dernière version
+  `! (umask 077 &&
+  TF_TOKEN_kcelia_scalr_io=op://terraform-scalr-poc/scalr-poc-token/credential op run -- tofu state pull > ~/Downloads/scalr-learning.tfstate)`
+
+
+### Scenario 2: VCS-driven + secrets in AWS secret manager
+
 
 ### Drift detection (both scenarios)
 
@@ -290,9 +311,10 @@ terraform {
 | `datasources.tf` | the stack's Prometheus data source, read and not created |
 | `dashboards.tf` | folder "Scalr POC" and dashboard "GitHub push results" |
 | `alerts.tf` | email contact point and alert "main is broken" |
-| `github.tf` | environment `env-poc-grafana-metrics` (main only), 2 variables, 1 secret |
+| `github.tf` | environment `env-poc-grafana-metrics` (main only), 2 variables, 2 secrets (one is the fake `POC_FAKE_SECRET`) |
 | `.github/workflows/push-metrics.yml` | checks on every push; on `main`, sends the result to Grafana |
 | `scripts/push_vars_to_scalr.py` | copies variables and secrets from 1Password to the Scalr workspace |
+| `.terraformignore` | allowlist of what `tofu` uploads to Scalr: the `.tf` files and `.terraform.lock.hcl` |
 
 | Command | What it does |
 |---|---|
