@@ -25,3 +25,9 @@ variable "alert_email" {
   type      = string
   sensitive = true
 }
+
+# Fake secret for the state demo: Scalr hides its value, the state does not.
+variable "poc_fake_secret" {
+  type      = string
+  sensitive = true
+}

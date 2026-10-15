@@ -55,3 +55,11 @@ resource "github_actions_environment_secret" "metrics_write_token" {
   secret_name = "GRAFANA_METRICS_WRITE_TOKEN"
   value       = var.grafana_metrics_write_token
 }
+
+# Fake secret: masked in the plan, stored in clear in the state.
+resource "github_actions_environment_secret" "poc_fake" {
+  repository  = var.github_repository
+  environment = github_repository_environment.grafana_metrics.environment
+  secret_name = "POC_FAKE_SECRET"
+  value       = var.poc_fake_secret
+}

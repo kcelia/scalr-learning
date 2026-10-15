@@ -40,7 +40,7 @@ class ScalrClient:
         token_env = "TF_TOKEN_" + host.replace(".", "_")
         token = os.environ.get(token_env)
         if not token:
-            raise SystemExit(f"error: {token_env} is not set: run this through `make scalr-vars`")
+            raise SystemExit(f"error: {token_env} is not set: run this through `make push-vars-to-scalr`")
         self._api = f"https://{host}/api/iacp/v3"
         self._token = token
 
