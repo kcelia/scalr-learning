@@ -1,6 +1,6 @@
-# OpenTofu 1.10 or later (Scalr does not run Terraform above 1.5), Grafana provider 3.x from 3.18 as in prod.
+# OpenTofu 1.11 or later for ephemeral resources (Scalr does not run Terraform above 1.5), Grafana provider 3.x from 3.18 as in prod.
 terraform {
-  required_version = ">= 1.10"
+  required_version = ">= 1.11"
 
   required_providers {
     grafana = {
@@ -10,6 +10,10 @@ terraform {
     github = {
       source  = "integrations/github"
       version = "~> 6.13"
+    }
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 6.69"
     }
   }
 

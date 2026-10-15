@@ -136,32 +136,32 @@ In VCS mode, you need to approve the run.
    - a metrics token (stack **Details → InfluxDB → Configure**, scope `metrics:write`): the workflow pushes data with it.
 1. On GitHub, create a fine-grained token for this repo only: **Administration** and **Environments**, read and write.
 1. Create a Scalr API token with `tofu login kcelia.scalr.io`. It writes the token in plain text to `~/.terraform.d/credentials.tfrc.json`: copy it to 1Password, then delete it from the file (if you keep it, `chmod 600` the file).
-  - OpenTofu looks for the token in this order:
-      1. the environment variable `TF_TOKEN_kcelia_scalr_io` (`TF_TOKEN_` + the host, dots replaced by underscores);
-      2. `~/.terraform.d/credentials.tfrc.json`, written by `tofu login`, in plain text;
-      3. a credentials helper.
+   - OpenTofu looks for the token in this order:
+     1. the environment variable `TF_TOKEN_kcelia_scalr_io` (`TF_TOKEN_` + the host, dots replaced by underscores);
+     2. `~/.terraform.d/credentials.tfrc.json`, written by `tofu login`, in plain text;
+     3. a credentials helper.
 
-    The POC uses the first one:
-    ```make
-    # The Makefile holds the 1Password reference, not the token
-    SCALR_TOKEN_ENV := $(SCALR_TOKEN_VAR)=op://terraform-scalr-poc/scalr-poc-token/credential
-    TF := $(SCALR_TOKEN_ENV) op run -- tofu
-    ```
+     The POC uses the first one:
+     ```make
+     # The Makefile holds the 1Password reference, not the token
+     SCALR_TOKEN_ENV := $(SCALR_TOKEN_VAR)=op://terraform-scalr-poc/scalr-poc-token/credential
+     TF := $(SCALR_TOKEN_ENV) op run -- tofu
+     ```
 1. Store the 4 tokens in the 1Password vault `terraform-scalr-poc`: `grafana-terraform-scalr-token`, `grafana-github-metrics-write-token`, `github-fg-token`, `scalr-poc-token`.
 1. Copy `.env.example` to `secrets.env.op` (git-ignored) and fill it: 1Password references only, never values.
 1. `make push-vars-to-scalr`
-  - copies the variables to the Scalr workspace through the Scalr API with the values `op run` reads from 1Password and `secrets.env.op`.
-  - Run it once, then again whenever a value changes
-  - Variables in Scalr: A variable is **declared** in the code (`variable` block) and gets its **value** from the workspace, set in one of 3 ways:
-    - the Scalr UI: **Workspace → Variables → Create variable**;
-    - the Scalr API: what `scripts/push_vars_to_scalr.py` does;
-    - the Scalr Terraform provider: `scalr_variable`.
+   - copies the variables to the Scalr workspace through the Scalr API with the values `op run` reads from 1Password and `secrets.env.op`.
+   - Run it once, then again whenever a value changes
+   - Variables in Scalr: A variable is **declared** in the code (`variable` block) and gets its **value** from the workspace, set in one of 3 ways:
+     - the Scalr UI: **Workspace → Variables → Create variable**;
+     - the Scalr API: what `scripts/push_vars_to_scalr.py` does;
+     - the Scalr Terraform provider: `scalr_variable`.
 
-  - Scalr has [2 categories of variables](https://docs.scalr.io/docs/variables):
-    - Terrafrom: fills the `variable` block of the same name
-    - Shell: exports it as an environment variable
+   - Scalr has [2 categories of variables](https://docs.scalr.io/docs/variables):
+     - Terrafrom: fills the `variable` block of the same name
+     - Shell: exports it as an environment variable
 
-  - <!> Sensitive variables: Scalr masks them in the UI and the API. The state still stores them in clear once a resource uses them.
+   - <!> Sensitive variables: Scalr masks them in the UI and the API. The state still stores them in clear once a resource uses them.
 
 ![Terraform variables in the workspace: sensitive values are masked](image-10.png)
 
@@ -172,7 +172,7 @@ In VCS mode, you need to approve the run.
 3. `make push-vars-to-scalr`: copy the 9 variables (4 sensitive) to the workspace.
 4. `make plan`, then `make apply` (confirmed with `yes`): both run on Scalr.
 
-### Scenario 2: VCS-driven + secrets in Scalr env (PR #1, commit `86a7417`)
+### Scenario 2.1: VCS-driven + secrets in Scalr env (PR #1, commit `86a7417`)
 
 1. **Connect the workspace to GitHub:** **Workspace → Settings → Source → Configuration source: VCS**: repository, branch `main`, trigger "any change", auto-apply off. Same workspace, same state.
    ![Workspace settings in VCS mode](image-1.png)
@@ -213,16 +213,80 @@ In VCS mode, you need to approve the run.
 
 
 Secrets in this scenario:
-- See the variables of the brute state:
-  - in Scalr UI:  Chaque ligne est une version du state
-  ![alt text](image-20.png)
-  - via terminal: ` tofu state pull` récupère la dernière version
-  `! (umask 077 &&
-  TF_TOKEN_kcelia_scalr_io=op://terraform-scalr-poc/scalr-poc-token/credential op run -- tofu state pull > ~/Downloads/scalr-learning.tfstate)`
+- See the variables in the raw state:
+  - in the Scalr UI: each row is a version of the state.
+    ![alt text](image-20.png)
+  - from the terminal: `tofu state pull` fetches the latest version.
+    ```
+    ! (umask 077 &&
+    TF_TOKEN_kcelia_scalr_io=op://terraform-scalr-poc/scalr-poc-token/credential op run -- tofu state pull > ~/Downloads/scalr-learning.tfstate)
+    ```
 
 
-### Scenario 2: VCS-driven + secrets in AWS secret manager
+### Scenario 2.2: VCS-driven + secrets in AWS secret manager
 
+- Create a [Provider configurations](https://docs.scalr.io/docs/provider-configurations)
+- AWS > Secrets Manager:
+
+  ![alt text](image-21.png)
+  ![alt text](image-22.png)
+  ![alt text](image-23.png)
+  ![alt text](image-24.png)
+
+  Secrets Manager never keeps the secret in clear on its disks. It encrypts it with a key managed by AWS KMS (Key Management Service), the AWS service dedicated to encryption keys. When someone reads the secret with `GetSecretValue`, Secrets Manager decrypts it on the fly with that same key.
+  There are two choices:
+  - `aws/secretsmanager` (the default);
+  - a customer-managed key.
+
+- IAM: IAM is the gatekeeper. It is the service that manages every identity and every permission of the AWS account. Every call to any AWS service goes through it. It holds the users, the roles, the policies and the identity providers, such as `scalr.io`, added here.
+
+  ![alt text](image-25.png)
+  ![alt text](image-26.png)
+  ![alt text](image-27.png)
+  ![alt text](image-28.png)
+
+  OIDC (OpenID Connect) is an authentication protocol. Here, it lets Scalr authenticate to the AWS account with no stored secret: no access key, no password.
+
+- Role:
+  A role is a temporary badge. It is not a person: it is an identity that someone "assumes" for a limited time. It has no password. It carries two policies, which answer two different questions:
+
+  ![alt text](image-31.png)
+  ![alt text](image-29.png)
+
+  The `sub` (subject) is a claim in the signed token that Scalr sends at each run. It describes who is calling: `account:kcelia:environment:Environment-A:workspace:scalr-learning`. You do not choose it: Scalr builds it from the real names of the account, the environment and the workspace.
+
+  ![alt text](image-30.png)
+
+
+Summary: what happens during a Scalr run
+1. Scalr starts a run and creates a signed token that says "I am the workspace `scalr-learning` of the environment `Environment-A` in the account `kcelia`".
+2. The runner presents this token to AWS and asks to assume the role `scalr-learning-secrets-read`.
+3. IAM checks the trust policy: does the token come from `scalr.io` (the declared provider), is the audience `scalr-kcelia`, does the workspace match? If so, it hands out temporary credentials, valid for the duration of the run.
+4. The OpenTofu code calls Secrets Manager with these credentials to read `github-fg-token`.
+5. IAM checks the permissions policy: may this role call `GetSecretValue` on this secret? Yes, so Secrets Manager decrypts the secret and returns its value.
+6. At the end of the run, the credentials expire. There is nothing to revoke.
+
+- Scalr:
+  Scope Account > Inventory → Provider configurations → Create configuration → AWS.
+
+  ![alt text](image-32.png)
+
+  Share it with our environment:
+
+  ![alt text](image-33.png)
+  ![alt text](image-34.png)
+
+  It is now available to the environment, but no workspace uses it yet.
+  Workspace > Provider configurations:
+
+  ![alt text](image-35.png)
+
+  Expected result: `aws-oidc-kcelia` is now linked to the workspace `scalr-learning`, next to `scalr-admin`. The Scalr configuration is complete; only the code is left.
+
+  ![alt text](image-36.png)
+
+- Code changes:
+  `GITHUB_TOKEN` removed from the Scalr shell variables.
 
 ### Drift detection (both scenarios)
 

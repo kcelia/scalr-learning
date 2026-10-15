@@ -25,7 +25,8 @@ VARIABLES: tuple[Variable, ...] = (
     Variable("GRAFANA_AUTH", "shell", True),
     Variable("GRAFANA_ONCALL_URL", "shell", False),
     Variable("GITHUB_OWNER", "shell", False),
-    Variable("GITHUB_TOKEN", "shell", True),
+    # GITHUB_TOKEN is now read from AWS Secrets Manager at each run (secrets.tf), no longer copied to Scalr.
+    # Variable("GITHUB_TOKEN", "shell", True),
     Variable("grafana_metrics_write_url", "terraform", False),
     Variable("grafana_metrics_instance_id", "terraform", False),
     Variable("grafana_metrics_write_token", "terraform", True),
