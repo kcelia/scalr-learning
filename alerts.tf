@@ -30,6 +30,7 @@ resource "grafana_rule_group" "github_push" {
     }
 
     labels = {
+      scenario = "2.2"
       service  = "github-push"
       severity = "critical"
       team     = "poc"
