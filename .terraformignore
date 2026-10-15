@@ -1,0 +1,4 @@
+# Allowlist of what `tofu` uploads to Scalr: the configuration and the provider lock file, nothing else.
+*
+!*.tf
+!.terraform.lock.hcl
