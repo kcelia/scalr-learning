@@ -11,7 +11,7 @@ resource "grafana_contact_point" "email" {
 resource "grafana_rule_group" "github_push" {
   name             = "GitHub push"
   folder_uid       = grafana_folder.poc.uid
-  interval_seconds = 120
+  interval_seconds = 60
 
   rule {
     name           = "main is broken"

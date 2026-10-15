@@ -2,3 +2,8 @@
 ephemeral "aws_secretsmanager_secret_version" "github" {
   secret_id = "github-fg-token"
 }
+
+# TEMPORARY test: unlike the ephemeral read above, a data source stores the secret in clear in the state.
+data "aws_secretsmanager_secret_version" "poc_fake" {
+  secret_id = "poc-fake-secret"
+}
