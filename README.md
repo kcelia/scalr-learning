@@ -100,7 +100,7 @@ Scalr also offers **API-driven** workspaces (a script uploads the code through t
 > A remote run does not see the laptop's environment. Every variable and secret the code needs must be set in the workspace.
 
 **Secrets and state**
-- POC: `make scalr-vars` copies the secrets from 1Password to Scalr, as write-only sensitive variables. Nothing records who ran it: Scalr audit logs require the Enterprise plan.
+- POC: `make push-vars-to-scalr` copies the secrets from 1Password to Scalr, as write-only sensitive variables. Nothing records who ran it: Scalr audit logs require the Enterprise plan.
 - Target: tokens in AWS Secrets Manager, read by each run through OIDC with `ephemeral` resources, never stored in Scalr. Options: OpenTofu state encryption with AWS KMS, self-hosted Scalr agents in your own AWS.
 - Scalr encrypts the state at rest (AES-256), but users with the `state-versions:read` permission can still read the secrets inside.
 - `terraform login` writes the Scalr token in plain text on disk. We read `TF_TOKEN_kcelia_scalr_io` from 1Password instead.
@@ -130,32 +130,78 @@ In VCS mode, you need to approve the run.
 
 ### Common steps
 
-1. `make setup` to install required packages, then turn on **1Password → Settings → Developer → Integrate with 1Password CLI**.
-2. In Grafana Cloud, create a stack, then:
+1. `make setup` installs the required tools.
+1. In Grafana Cloud, create a stack, then:
    - a service account `terraform-scalr` (role Admin) and its token: OpenTofu configures the stack with it;
    - a metrics token (stack **Details → InfluxDB → Configure**, scope `metrics:write`): the workflow pushes data with it.
-3. On GitHub, create a fine-grained token for this repo only: **Administration** and **Environments**, read and write.
-4. Store the 4 tokens in the 1Password vault: `grafana-terraform-scalr-token`, `grafana-github-metrics-write-token`, `github-fg-token`, `scalr-poc-token`.
-5. Copy `.env.example` to `secrets.env.op` (git-ignored) and fill it: 1Password references only, never values.
+1. On GitHub, create a fine-grained token for this repo only: **Administration** and **Environments**, read and write.
+1. Create a Scalr API token with `tofu login kcelia.scalr.io`. It writes the token in plain text to `~/.terraform.d/credentials.tfrc.json`: copy it to 1Password, then delete it from the file (if you keep it, `chmod 600` the file).
+  - OpenTofu looks for the token in this order:
+      1. the environment variable `TF_TOKEN_kcelia_scalr_io` (`TF_TOKEN_` + the host, dots replaced by underscores);
+      2. `~/.terraform.d/credentials.tfrc.json`, written by `tofu login`, in plain text;
+      3. a credentials helper.
+
+    The POC uses the first one:
+    ```make
+    # The Makefile holds the 1Password reference, not the token
+    SCALR_TOKEN_ENV := $(SCALR_TOKEN_VAR)=op://terraform-scalr-poc/scalr-poc-token/credential
+    TF := $(SCALR_TOKEN_ENV) op run -- tofu
+    ```
+1. Store the 4 tokens in the 1Password vault `terraform-scalr-poc`: `grafana-terraform-scalr-token`, `grafana-github-metrics-write-token`, `github-fg-token`, `scalr-poc-token`.
+1. Copy `.env.example` to `secrets.env.op` (git-ignored) and fill it: 1Password references only, never values.
+1. `make push-vars-to-scalr`
+  - copies the variables to the Scalr workspace through the Scalr API with the values `op run` reads from 1Password and `secrets.env.op`.
+  - Run it once, then again whenever a value changes
+  - Variables in Scalr: A variable is **declared** in the code (`variable` block) and gets its **value** from the workspace, set in one of 3 ways:
+    - the Scalr UI: **Workspace → Variables → Create variable**;
+    - the Scalr API: what `scripts/push_vars_to_scalr.py` does;
+    - the Scalr Terraform provider: `scalr_variable`.
+
+  - Scalr has [2 categories of variables](https://docs.scalr.io/docs/variables):
+    - Terrafrom: fills the `variable` block of the same name
+    - Shell: exports it as an environment variable
+
+  - <!> Sensitive variables: Scalr masks them in the UI and the API. The state still stores them in clear once a resource uses them.
+
+![Terraform variables in the workspace: sensitive values are masked](image-10.png)
+
 ### Scenario 1: CLI-driven (commit `00a4d4d`)
 
 1. Add the `backend "remote"` block to `versions.tf`: Scalr host, environment, workspace.
 2. `make init`, then `make migrate-state`: copy the local state to the workspace `scalr-learning` (one time only).
-3. `make scalr-vars`: copy the 9 variables (4 sensitive) to the workspace.
+3. `make push-vars-to-scalr`: copy the 9 variables (4 sensitive) to the workspace.
 4. `make plan`, then `make apply` (confirmed with `yes`): both run on Scalr.
 
-### Scenario 2: VCS-driven (PR #1)
+### Scenario 2: VCS-driven (PR #1, commit `86a7417`)
 
-1. In Scalr, create a GitHub VCS provider (account level, OAuth).
-2. **Workspace → Settings → Source → Configuration source: VCS**: repository, branch `main`, trigger "any change", auto-apply off. Same workspace, same state.
-3. Open PR #1 (dashboard renamed), merge it, then approve the run in Scalr.
-  - les logs des runners scalr sont sure scaller
-  ![alt text](image-7.png)
-  ![alt text](image-8.png)
-4. Push a commit straight to `main` (`937e21e`).
-5. Run `make apply` from the laptop: refused.
+1. **Connect the workspace to GitHub:** **Workspace → Settings → Source → Configuration source: VCS**: repository, branch `main`, trigger "any change", auto-apply off. Same workspace, same state.
+   ![Workspace settings in VCS mode](image-1.png)
+2. **Make a change:** add the Terraform variable `poc_fake_secret` (sensitive) in the Scalr UI, and the GitHub secret `POC_FAKE_SECRET` that uses it (`github_actions_environment_secret.poc_fake`).
+3. **Plan:**
+   - A plan compares resources (code, state, real services), not variables: as long as no resource used `poc_fake_secret`, the plan said *No changes*.
+   - `make plan` from the laptop shows `value = (sensitive value)`:
+     ![Plan in the terminal](image-12.png)
+   - The terminal prints the link to the run in Scalr. A plan started from the laptop is a dry run: it cannot be applied.
+     ![Link to the run, printed by make plan](image-13.png)
+     ![The same plan in Scalr](image-14.png)
+   - Scalr lists every run under **Runs → History**; runs started from the laptop show the trigger `CLI`.
+     ![Runs started from the laptop](image-15.png)
+4. **Apply:**
+   - `make apply` from the laptop is refused: *Apply not allowed for workspaces with a VCS connection*.
+   - Push or merge to `main`: Scalr runs a plan, then waits for approval (auto-apply off). Approve it in **Runs → Queue** or on the run page.
+     ![Run waiting for approval in the queue](image-17.png)
+     ![Workspace dashboard: the latest run requires approval](image-16.png)
+     ![Run page: the plan to approve](image-18.png)
+   - On GitHub, the commit lists every check: Scalr's plan and the two `push-metrics` jobs.
+     ![Checks on the commit](image-19.png)
+   - The run executes on Scalr's runners, not on GitHub: GitHub only shows the status Scalr sends it (for example *Pending – Planning*). The logs stay in Scalr; **Details** links to them.
+   - When the plan has no changes, the run stops after the plan: no approval and no apply, whether auto-apply is on or off.
 
-![Workspace settings in VCS mode](image-1.png)
+5. ⏳ **Check the state:** after the apply, the state should hold the value of `poc_fake_secret` in clear, in the `value` attribute of `github_actions_environment_secret.poc_fake` (**Workspace → States**; download the state version if the UI masks it).
+
+**What `make plan` sends to Scalr**
+- `tofu` packs the local folder into an archive (a *slug*) and uploads it; the Scalr runner runs the plan from that archive, uncommitted code included.
+- Only `.terraformignore` filters the archive, not `.gitignore`. This repo has none, so everything except `.git/` and `.terraform/` is uploaded, git-ignored files included (for example a local `*.tfstate`).
 
 ### Drift detection (both scenarios)
 
@@ -246,7 +292,7 @@ terraform {
 | `alerts.tf` | email contact point and alert "main is broken" |
 | `github.tf` | environment `env-poc-grafana-metrics` (main only), 2 variables, 1 secret |
 | `.github/workflows/push-metrics.yml` | checks on every push; on `main`, sends the result to Grafana |
-| `scripts/scalr_vars.py` | copies variables and secrets from 1Password to the Scalr workspace |
+| `scripts/push_vars_to_scalr.py` | copies variables and secrets from 1Password to the Scalr workspace |
 
 | Command | What it does |
 |---|---|
@@ -255,7 +301,7 @@ terraform {
 | `make plan` | run a plan of the **local** code on Scalr (allowed in both modes) |
 | `make apply` | CLI-driven only. Refused once the workspace is VCS-driven |
 | `make migrate-state` | one time only: copy a local state to Scalr |
-| `make scalr-vars` | copy the 9 variables (4 sensitive) to the Scalr workspace |
+| `make push-vars-to-scalr` | copy the 9 variables (4 sensitive) to the Scalr workspace |
 | `make check-token-{grafana,oncall,github,scalr}` | check one token from 1Password |
 | `make push-metric` | send one test point to Grafana |
 
