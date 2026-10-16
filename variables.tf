@@ -27,7 +27,9 @@ variable "alert_email" {
 }
 
 # Fake secret for the state demo: Scalr hides its value, the state does not.
+# TEMPORARY test: ephemeral, so OpenTofu must refuse it in github_actions_environment_secret.poc_fake (no write-only attribute).
 variable "poc_fake_secret" {
   type      = string
   sensitive = true
+  ephemeral = true
 }
