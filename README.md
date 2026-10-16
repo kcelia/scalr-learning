@@ -358,17 +358,6 @@ Beyond that, it uses **OpenTofu**: the open-source fork of Terraform, hosted by 
 | **Trusted third parties** | 3 (Scalr, GitHub, AWS) | **2 (GitHub, AWS)** |
 | **Scaling** | **Built for several teams and workspaces** | Heavy to maintain |
 
-**In short:**
-- IMO to manage file state for a big team (governance and visibility needed) -> Scalr
-
-Utiliser un state distant : OpenTofu ne l’écrit alors plus sur le disque local, il le garde seulement en mémoire.
-Chiffrer au repos côté backend : par exemple l’option encrypt du backend S3. C’est l’équivalent du chiffrement AES-256 de Scalr.
-Contrôler et tracer les accès : politiques IAM, logs, et connexion TLS.
-
--
-### Other option to explore
-
-- `value_encrypted` (GitHub secrets only): pass the value already encrypted with GitHub's public key; the state keeps only the ciphertext. Encryption happens outside OpenTofu. Not tested.
 
 ### References
 
